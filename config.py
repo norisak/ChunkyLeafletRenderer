@@ -1,7 +1,6 @@
 import math
 from dataclasses import dataclass
 
-
 @dataclass
 class Config:
     world_path: str = None  # Absolute path to the world folder
@@ -18,6 +17,8 @@ class Config:
     samples_per_pixel: int = 50
     zoom_levels: int = 8
     threads: int = 14
+    use_avif: bool = False  # Use AVIF instead of PNG. Requires ffmpeg with libaom-av1
+    avif_crf: int = 20  # AVIF CRF value between 0 and 63 where lower is higher quality.
 
     def load_from_dict(self, data: dict):
         for key, value in data.items():

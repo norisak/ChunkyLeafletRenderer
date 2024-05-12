@@ -14,6 +14,7 @@ from PIL import Image
 
 from config import Config
 from tile_math import get_camera_pos_of_tile, get_tiles_for_chunk, get_chunkset_for_tile, get_chunklist_for_tile
+from image import ImageHandler, PngImageHandler, AvifImageHandler
 
 
 def get_chunklist(config: Config, batch_x, batch_y):
@@ -126,9 +127,11 @@ def move_image(
         tile_last_modified,
         zoom_tiles_to_render: set[tuple[int, int, int]]
 ):
-    image_file = scene_fs.open(f"snapshots/{config.scene_name}-{spp}.png", "rb")
+    chunky_image_file = scene_fs.open(f"snapshots/{config.scene_name}-{spp}.png", "rb")
 
-    image = Image.open(image_file)
+    image_handler = AvifImageHandler(crf=config.avif_crf) if config.use_avif else PngImageHandler()
+
+    image = Image.open(chunky_image_file)
 
     tiles_rendered = []
 
@@ -139,8 +142,10 @@ def move_image(
             continue
         cropped = image.crop((sub_x * config.tile_pixel_size, sub_y * config.tile_pixel_size, (sub_x + 1) * config.tile_pixel_size, (sub_y + 1) * config.tile_pixel_size))
         scene_fs.makedirs(f"tiles/zoom_0/{tile_x}", recreate=True)
-        with scene_fs.open(f"tiles/zoom_0/{tile_x}/{tile_y}.png", "wb") as f:
-            cropped.save(f, format="png")
+
+        os_path = scene_fs.getospath(f"tiles/zoom_0/{tile_x}/{tile_y}")
+        image_handler.save_image(cropped, os_path)
+
         cur.execute(
             "INSERT OR REPLACE INTO tiles (render_name, zoom_level, x, y, last_modified) VALUES (?, ?, ?, ?, ?)",
             (config.render_name, 0, tile_x, tile_y, tile_last_modified[(tile_x, tile_y)])
@@ -149,10 +154,10 @@ def move_image(
         tiles_to_render.remove((tile_x, tile_y))
         zoom_tiles_to_render.remove((0, tile_x, tile_y))
 
-    check_make_zoom_tiles(config, scene_fs.opendir("tiles"), tiles_rendered, zoom_tiles_to_render, cur)
+    check_make_zoom_tiles(config, image_handler, scene_fs.opendir("tiles"), tiles_rendered, zoom_tiles_to_render, cur)
     cur.execute("COMMIT")
 
-    image_file.close()
+    chunky_image_file.close()
 
     scene_fs.remove(f"snapshots/{config.scene_name}-{spp}.png")
 
@@ -164,7 +169,7 @@ def get_child_tiles(zoom_level, tile_x, tile_z):
     yield zoom_level + 1, tile_x * 2 + 1, tile_z * 2 + 1
 
 
-def check_make_zoom_tiles(config: Config, tile_fs, tiles_rendered, zoom_tiles_to_render, cur: sqlite3.Cursor):
+def check_make_zoom_tiles(config: Config, image_handler: ImageHandler, tile_fs, tiles_rendered, zoom_tiles_to_render, cur: sqlite3.Cursor):
     upper_tiles = set()
     tile_last_modified = {}
 
@@ -187,19 +192,17 @@ def check_make_zoom_tiles(config: Config, tile_fs, tiles_rendered, zoom_tiles_to
         dst_image = np.zeros((size, size, 4), dtype=np.uint8)
 
         for src_x, src_y in [0,0], [0,1], [1,0], [1,1]:
-            src_path = f"zoom_{zoom+1}/{x*2+src_x}/{y*2+src_y}.png"
-            if not tile_fs.exists(src_path):
+            src_path = f"zoom_{zoom+1}/{x*2+src_x}/{y*2+src_y}"
+            src_path_os = tile_fs.getospath(src_path)
+            if not image_handler.image_exists(src_path_os):
                 continue
-            with tile_fs.open(src_path, "rb") as f:
-                with io.BytesIO(f.read()) as bio:
-                    src = Image.open(bio)
-                    src = src.resize((size//2, size//2), Image.LANCZOS)
-                    src = np.array(src.convert("RGBA"))
-                    dst_image[src_y*half_size:(src_y+1)*half_size, src_x*half_size:(src_x+1)*half_size] = src
+            with io.BytesIO(image_handler.load_image(src_path_os)) as bio:
+                src = Image.open(bio)
+                src = src.resize((size//2, size//2), Image.LANCZOS)
+                src = np.array(src.convert("RGBA"))
+                dst_image[src_y*half_size:(src_y+1)*half_size, src_x*half_size:(src_x+1)*half_size] = src
 
-        dst_image = Image.fromarray(dst_image)
-        with tile_fs.open(f"zoom_{zoom}/{x}/{y}.png", "wb") as f:
-            dst_image.save(f, format="png")
+        image_handler.save_image(Image.fromarray(dst_image), tile_fs.getospath(f"zoom_{zoom}/{x}/{y}"))
         cur.execute(
             "INSERT OR REPLACE INTO tiles (render_name, zoom_level, x, y, last_modified) VALUES (?, ?, ?, ?, ?)",
             (config.render_name, zoom, x, y, tile_last_modified[upper_tile])
@@ -208,42 +211,7 @@ def check_make_zoom_tiles(config: Config, tile_fs, tiles_rendered, zoom_tiles_to
 
     if len(upper_tiles) > 0 and all(tile[0] > -config.zoom_levels for tile in upper_tiles):
         next_tiles_to_render = [(zoom, x, y, tile_last_modified[(zoom, x, y)]) for zoom, x, y in upper_tiles]
-        check_make_zoom_tiles(config, tile_fs, next_tiles_to_render, zoom_tiles_to_render, cur)
-
-
-def make_zoom_level(config: Config, zoom_level: int):
-    tile_fs = fs.open_fs(f"chunky/scenes/{config.scene_name}/tiles")
-    size = config.tile_pixel_size
-    half_size = size // 2
-    src_tiles = []
-    for x in tile_fs.walk(f"zoom_{zoom_level+1}"):
-        if len(x.files) > 0:
-            tile_x = int(x.path.split("/")[-1])
-            for f in x.files:
-                tile_y = int(f.name.split(".")[0])
-                src_tiles.append((tile_x, tile_y))
-    dst_tiles = [(x[0]//2, x[1]//2) for x in src_tiles]
-    dst_tiles = list(set(dst_tiles))
-    for x, y in dst_tiles:
-        tile_fs.makedirs(f"zoom_{zoom_level}/{x}", recreate=True)
-        dst_image = np.zeros((size, size, 4), dtype=np.uint8)
-
-        for src_x, src_y in [0, 0], [0, 1], [1, 0], [1, 1]:
-            if (x*2+src_x, y*2+src_y) not in src_tiles:
-                continue
-            src = Image.open(f"chunky/scenes/{config.scene_name}/tiles/zoom_{zoom_level+1}/{x*2+src_x}/{y*2+src_y}.png")
-            src = src.resize((size//2, size//2), Image.LANCZOS)
-            src = np.array(src.convert("RGBA"))
-            dst_image[src_y*half_size:(src_y+1)*half_size, src_x*half_size:(src_x+1)*half_size] = src
-
-        dst_image = Image.fromarray(dst_image)
-        dst_image.save(f"chunky/scenes/{config.scene_name}/tiles/zoom_{zoom_level}/{x}/{y}.png")
-
-
-def fill_zoom_levels(config: Config):
-    for zoom_level in reversed(range(-config.zoom_levels, 0)):
-        print(zoom_level)
-        make_zoom_level(config, zoom_level)
+        check_make_zoom_tiles(config, image_handler, tile_fs, next_tiles_to_render, zoom_tiles_to_render, cur)
 
 
 def tiles_to_batches(config: Config, tile_set: set):
