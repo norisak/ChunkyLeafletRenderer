@@ -93,6 +93,7 @@ def list_regions(config: Config):
 
 def run_batch(
         config: Config,
+        image_handler: ImageHandler,
         batch_x,
         batch_y,
         chunk_set,
@@ -109,15 +110,34 @@ def run_batch(
             tile_x = batch_x * config.tile_batch_size + sub_x * config.tile_render_batch_size
             tile_y = batch_y * config.tile_batch_size + sub_y * config.tile_render_batch_size
 
+            render_batch_tile_set = {(tile_x + x, tile_y + y) for x, y in itertools.product(range(config.tile_render_batch_size), range(config.tile_render_batch_size))}
+
+            if len(render_batch_tile_set & tiles_to_render) == 0:
+                continue
+
             create_scene(config, batch_x, batch_y, tile_x, tile_y, chunk_set, reset=first)
             first = False
-            run_chunky(config,
-                       ["-f", "-render", "chunky/scenes/" + config.scene_name + "/" + config.scene_name + ".json"])
-            move_image(config, scene_fs, tile_x, tile_y, config.samples_per_pixel, tiles_to_render, cur, tile_last_modified, zoom_tiles_to_render)
+            run_chunky(
+                config,
+                ["-f", "-render", "chunky/scenes/" + config.scene_name + "/" + config.scene_name + ".json"]
+            )
+            move_image(
+                config,
+                image_handler,
+                scene_fs,
+                tile_x,
+                tile_y,
+                config.samples_per_pixel,
+                tiles_to_render,
+                cur,
+                tile_last_modified,
+                zoom_tiles_to_render
+            )
 
 
 def move_image(
         config: Config,
+        image_handler: ImageHandler,
         scene_fs,
         base_tile_x,
         base_tile_y,
@@ -128,8 +148,6 @@ def move_image(
         zoom_tiles_to_render: set[tuple[int, int, int]]
 ):
     chunky_image_file = scene_fs.open(f"snapshots/{config.scene_name}-{spp}.png", "rb")
-
-    image_handler = AvifImageHandler(crf=config.avif_crf) if config.use_avif else PngImageHandler()
 
     image = Image.open(chunky_image_file)
 
@@ -261,7 +279,7 @@ def list_chunks_in_region(config: Config, region_x, region_z):
     return result
 
 
-def render(config: Config):
+def render(config: Config, image_handler: ImageHandler):
 
     regions = list_regions(config)
     fs.open_fs(f"chunky/scenes/{config.scene_name}", create=True)
@@ -366,7 +384,17 @@ def render(config: Config):
             print(f"Rendering batch {batch_x}, {batch_y}. Completed: ({batches_completed}/{total_batches}). ETA: {elapsed_time / batches_completed * (total_batches - batches_completed)} seconds")
         else:
             print(f"Rendering batch {batch_x}, {batch_y}")
-        run_batch(config, batch_x, batch_y, chunk_set, tiles_to_render, cur, tile_last_modified, zoom_tiles_to_render)
+        run_batch(
+            config,
+            image_handler,
+            batch_x,
+            batch_y,
+            chunk_set,
+            tiles_to_render,
+            cur,
+            tile_last_modified,
+            zoom_tiles_to_render
+        )
         batches_completed += 1
 
     print("Render completed in", time.time() - start_time, "seconds.")
@@ -381,6 +409,11 @@ if __name__ == '__main__':
         json_config = json.load(open(args.config, "r"))
         config.load_from_dict(json_config)
 
+    image_handler = AvifImageHandler(crf=config.avif_crf) if config.use_avif else PngImageHandler()
+    if not image_handler.check():
+        print("Required dependencies for the chosen image format are not available. Exiting.")
+        exit(1)
+
     print("Starting render. Config:")
     print(config)
-    render(config)
+    render(config, image_handler)
