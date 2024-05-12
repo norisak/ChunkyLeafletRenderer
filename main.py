@@ -283,6 +283,16 @@ def render(config: Config, image_handler: ImageHandler):
 
     regions = list_regions(config)
     fs.open_fs(f"chunky/scenes/{config.scene_name}", create=True)
+    output_fs = fs.open_fs(f"chunky/scenes/{config.scene_name}", create=True)
+    if not output_fs.exists("index.html"):
+        with output_fs.open("index.html", "w") as index_output, open("index.template.html", "r") as index_template:
+            index_output.write(
+                index_template.read() \
+                              .replace("#TILE_SIZE#", str(config.tile_pixel_size)) \
+                              .replace("#ZOOM_LEVELS#", str(config.zoom_levels)) \
+                              .replace("#FILE_FORMAT#", "avif" if config.use_avif else "png")
+            )
+
     con = sqlite3.connect("chunky/scenes/" + config.scene_name + "/tiles.db")
     cur = con.cursor()
     cur.execute("""
