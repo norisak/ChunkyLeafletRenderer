@@ -1,0 +1,129 @@
+{
+  "sdfVersion": 9,
+  "name": "default_2023-08-26_12-08-23",
+  "width": 7680,
+  "height": 4320,
+  "yClipMin": -64,
+  "yClipMax": 320,
+  "yMin": -64,
+  "yMax": 320,
+  "exposure": 1.0,
+  "postprocess": "GAMMA",
+  "outputMode": "PNG",
+  "renderTime": 2383880,
+  "spp": 100,
+  "sppTarget": 100,
+  "rayDepth": 5,
+  "pathTrace": true,
+  "dumpFrequency": 500,
+  "saveSnapshots": false,
+  "emittersEnabled": false,
+  "emitterIntensity": 13.0,
+  "sunEnabled": true,
+  "stillWater": false,
+  "waterOpacity": 0.42,
+  "waterVisibility": 9.0,
+  "useCustomWaterColor": false,
+  "fogColor": {
+    "red": 0.42814502293337064,
+    "green": 0.5858024691358026,
+    "blue": 1.0
+  },
+  "fastFog": true,
+  "biomeColorsEnabled": true,
+  "transparentSky": false,
+  "fogDensity": 0.0,
+  "skyFogDensity": 1.0,
+  "waterWorldEnabled": false,
+  "waterWorldHeight": 63.0,
+  "waterWorldHeightOffsetEnabled": true,
+  "waterWorldClipEnabled": true,
+  "renderActors": true,
+  "world": {
+    "path": "",
+    "dimension": 0
+  },
+  "camera": {
+    "name": "camera 1",
+    "position": {
+      "x": -500.0,
+      "y": 66.0,
+      "z": -200.0
+    },
+    "orientation": {
+      "roll": 0.0,
+      "pitch": -1.0471975511965976,
+      "yaw": -0.7853981633974483
+    },
+    "projectionMode": "PARALLEL",
+    "fov": 600.0,
+    "dof": "Infinity",
+    "focalOffset": 2.0,
+    "shift": {
+      "x": 0.0,
+      "y": 0.0
+    }
+  },
+  "sun": {
+    "altitude": 1.0471975511965976,
+    "azimuth": 1.2566370614359172,
+    "intensity": 1.25,
+    "color": {
+      "red": 1.0,
+      "green": 1.0,
+      "blue": 1.0
+    },
+    "drawTexture": true
+  },
+  "sky": {
+    "skyYaw": 0.0,
+    "skyMirrored": true,
+    "skyLight": 1.0,
+    "mode": "SIMULATED",
+    "horizonOffset": 0.0,
+    "cloudsEnabled": false,
+    "cloudSize": 64.0,
+    "cloudOffset": {
+      "x": 0.0,
+      "y": 128.0,
+      "z": 0.0
+    },
+    "gradient": [
+      {
+        "rgb": "0BABC7",
+        "pos": 0.0
+      },
+      {
+        "rgb": "75AAFF",
+        "pos": 1.0
+      }
+    ],
+    "color": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "simulatedSky": "Preetham",
+    "skyCacheResolution": 128
+  },
+  "cameraPresets": {},
+  "materials": {},
+  "chunkList": [],
+  "entities": [],
+  "actors": [],
+  "entityLoadingPreferences": {
+    "se.llbit.chunky.entity.PlayerEntity": true,
+    "se.llbit.chunky.entity.ArmorStand": true,
+    "se.llbit.chunky.entity.Book": true,
+    "se.llbit.chunky.entity.PaintingEntity": true,
+    "other": true
+  },
+  "octreeImplementation": "PACKED",
+  "bvhImplementation": "SAH_MA",
+  "emitterSamplingStrategy": "NONE",
+  "preventNormalEmitterWithSampling": false,
+  "animationTime": 0.0,
+  "renderer": "PathTracingRenderer",
+  "previewRenderer": "PreviewRenderer",
+  "additionalData": {}
+}
