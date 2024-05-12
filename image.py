@@ -69,7 +69,7 @@ class AvifImageHandler(ImageHandler):
         output_file = to_str_path(image_os_path) + ".avif"
 
         with subprocess.Popen(
-            ["ffmpeg", "-f", "png_pipe", "-i", "pipe:0", "-c:v", "libaom-av1", "-crf", str(self.crf), output_file],
+            ["ffmpeg", "-f", "png_pipe", "-i", "pipe:0", "-c:v", "libaom-av1", "-crf", str(self.crf), "-cpu-used", "6", output_file],
             stdin=subprocess.PIPE,
             stderr=subprocess.DEVNULL
         ) as ffmpeg_process, BytesIO() as bio:
