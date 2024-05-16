@@ -24,20 +24,21 @@
       * {
         box-sizing: border-box;
       }
-	  .leaflet-container {
-		background-color: black;
-	  }
+      .leaflet-container {
+        background-color: black;
+      }
     </style>
   </head>
   <body>
     <div id="root" class="main"></div>
     <script>
-      var map = L.map('root', {center: [0, 0], crs: L.CRS.Simple, zoomControl: false, zoom: 0});
+      var map = L.map('root', {center: [0, 0], crs: L.CRS.Simple, zoomControl: false, maxZoom: L.Browser.retina ? 1 : 0})
+        .setView([0, 0], 0);
       L.tileLayer('./tiles/zoom_{z}/{x}/{y}.#FILE_FORMAT#', {
         minZoom: -#ZOOM_LEVELS#,
-        maxZoom: 0,
-        tileSize: #TILE_SIZE#,
-        detectRetina: true
+        maxZoom: L.Browser.retina ? 1 : 0,
+        maxNativeZoom: 0,
+        tileSize: L.Browser.retina ? #TILE_SIZE# / 2 : #TILE_SIZE#
       }).addTo(map);
     </script>
   </body>
